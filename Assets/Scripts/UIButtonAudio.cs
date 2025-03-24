@@ -4,6 +4,9 @@ using UnityEngine.UI;
 
 public class UIButtonAudio : MonoBehaviour
 {
+    [Tooltip("Assign the AudioSource that plays the button click sound.")]
+    public AudioSource buttonClickAudioSource;
+
     [Tooltip("Assign the primary AudioSource that has the intended AudioClip set on it.")]
     public AudioSource audioSource;
 
@@ -14,7 +17,6 @@ public class UIButtonAudio : MonoBehaviour
 
     void Awake()
     {
-        // Get the Button component attached to this GameObject.
         button = GetComponent<Button>();
         if (button == null)
         {
@@ -27,39 +29,52 @@ public class UIButtonAudio : MonoBehaviour
 
     void PlayAudio()
     {
-        // Stop all audio in the scene.
+        StartCoroutine(PlayFullAudioSequence());
+    }
+
+    IEnumerator PlayFullAudioSequence()
+    {
+        // Step 1: Stop all audio in the scene.
         StopAllAudio();
 
-        if (audioSource != null && audioSource.clip != null)
+        // Step 2: Always play the button click sound first.
+        if (buttonClickAudioSource != null && buttonClickAudioSource.clip != null)
         {
-            // Play the primary AudioSource's clip.
-            audioSource.Play();
-            // Start a coroutine to wait until the primary clip finishes playing.
-            StartCoroutine(WaitForPrimaryToFinish());
+            buttonClickAudioSource.Play();
+            // Step 3: Wait until the button click sound finishes.
+            yield return new WaitUntil(() => !buttonClickAudioSource.isPlaying);
         }
         else
         {
-            Debug.LogWarning("Primary AudioSource or its AudioClip is not assigned on " + gameObject.name);
+            Debug.LogWarning("Button click AudioSource or its clip is not assigned. Skipping button click sound.");
         }
-    }
 
-    IEnumerator WaitForPrimaryToFinish()
-    {
-        // Wait until the primary audio has finished playing.
-        while (audioSource != null && audioSource.isPlaying)
-        {
-            yield return null;
-        }
-        // Stop all audio again.
+        // Step 4: Stop all audio again.
         StopAllAudio();
-        // Play the secondary AudioSource's clip.
-        if (nextAudioSource != null)
+
+        // Step 5: Play the primary audio clip.
+        if (audioSource != null && audioSource.clip != null)
+        {
+            audioSource.Play();
+            // Step 6: Wait until the primary audio finishes.
+            yield return new WaitUntil(() => !audioSource.isPlaying);
+        }
+        else
+        {
+            Debug.LogWarning("Primary AudioSource or its clip is not assigned. Skipping primary audio.");
+        }
+
+        // Step 7: Stop all audio again.
+        StopAllAudio();
+
+        // Step 8: Play the secondary audio clip.
+        if (nextAudioSource != null && nextAudioSource.clip != null)
         {
             nextAudioSource.Play();
         }
         else
         {
-            Debug.LogWarning("Secondary AudioSource not assigned on " + gameObject.name);
+            Debug.LogWarning("Secondary AudioSource or its clip is not assigned. Skipping secondary audio.");
         }
     }
 
@@ -70,7 +85,7 @@ public class UIButtonAudio : MonoBehaviour
         foreach (AudioSource src in allAudioSources)
         {
             src.Stop();
-            // Disable looping so that any looping sources don't immediately restart.
+            // Disable looping to prevent any looping sources from restarting.
             src.loop = false;
         }
     }
